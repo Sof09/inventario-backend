@@ -7,6 +7,8 @@ require('./config/database');
 const negocioRoutes = require('./routes/negocioRoutes');
 const usuarioRoutes = require('./routes/usuarioRoutes');
 const productoRoutes = require('./routes/productoRoutes');
+const categoriaRoutes = require('./routes/categoriaRoutes');
+const proveedorRoutes = require('./routes/proveedorRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -18,6 +20,9 @@ app.use(express.json());
 app.use('/api/negocios', negocioRoutes);
 app.use('/api/usuarios', usuarioRoutes);
 app.use('/api/productos', productoRoutes);
+app.use('/api/categorias', categoriaRoutes);
+app.use('/api/proveedores', proveedorRoutes);
+
 
 // Ruta principal
 app.get('/', (req, res) => {
