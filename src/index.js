@@ -10,6 +10,8 @@ const productoRoutes = require('./routes/productoRoutes');
 const categoriaRoutes = require('./routes/categoriaRoutes');
 const proveedorRoutes = require('./routes/proveedorRoutes');
 const movimientoRoutes = require('./routes/movimientoRoutes');
+const clienteRoutes = require('./routes/clienteRoutes');
+const ventaRoutes = require('./routes/ventaRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -24,6 +26,8 @@ app.use('/api/productos', productoRoutes);
 app.use('/api/categorias', categoriaRoutes);
 app.use('/api/proveedores', proveedorRoutes);
 app.use('/api/movimientos', movimientoRoutes);
+app.use('/api/clientes', clienteRoutes);
+app.use('/api/ventas', ventaRoutes);
 
 // Ruta principal
 app.get('/', (req, res) => {

@@ -1,3 +1,4 @@
+// src/middlewares/authMiddleware.js - BACKEND
 const jwt = require('jsonwebtoken');
 
 const verificarToken = (req, res, next) => {
@@ -9,7 +10,6 @@ const verificarToken = (req, res, next) => {
   }
 
   try {
-    // Verificar y decodificar el token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.usuario = decoded;
     next();
@@ -18,4 +18,11 @@ const verificarToken = (req, res, next) => {
   }
 };
 
-module.exports = { verificarToken };
+const soloAdmin = (req, res, next) => {
+  if (req.usuario.rol !== 'admin') {
+    return res.status(403).json({ error: 'Acceso restringido a administradores' });
+  }
+  next();
+};
+
+module.exports = { verificarToken, soloAdmin };

@@ -1,11 +1,12 @@
+// src/routes/proveedorRoutes.js - BACKEND
 const express = require('express');
 const router = express.Router();
 const { getProveedores, crearProveedor, editarProveedor, eliminarProveedor } = require('../controllers/proveedorController');
-const { verificarToken } = require('../middlewares/authMiddleware');
+const { verificarToken, soloAdmin } = require('../middlewares/authMiddleware');
 
-router.get('/', verificarToken, getProveedores);
-router.post('/', verificarToken, crearProveedor);
-router.put('/:id', verificarToken, editarProveedor);
-router.delete('/:id', verificarToken, eliminarProveedor);
+router.get('/', verificarToken, soloAdmin, getProveedores);
+router.post('/', verificarToken, soloAdmin, crearProveedor);
+router.put('/:id', verificarToken, soloAdmin, editarProveedor);
+router.delete('/:id', verificarToken, soloAdmin, eliminarProveedor);
 
 module.exports = router;

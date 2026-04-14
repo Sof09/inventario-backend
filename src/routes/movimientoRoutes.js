@@ -1,3 +1,4 @@
+// src/routes/movimientoRoutes.js - BACKEND
 const express = require('express');
 const router = express.Router();
 const { crearMovimiento, getMovimientos, getMovimientosPorProducto } = require('../controllers/movimientoController');
