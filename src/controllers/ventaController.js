@@ -1,7 +1,8 @@
 // src/controllers/ventaController.js - BACKEND
 const db = require('../config/database');
+const fs = require('fs');
+const path = require('path');
 
-// Obtener todas las ventas del negocio
 const getVentas = async (req, res) => {
   try {
     const id_negocio = req.usuario.id_negocio;
@@ -23,7 +24,6 @@ const getVentas = async (req, res) => {
   }
 };
 
-// Obtener detalle de una venta
 const getDetalleVenta = async (req, res) => {
   try {
     const id_negocio = req.usuario.id_negocio;
@@ -60,7 +60,6 @@ const getDetalleVenta = async (req, res) => {
   }
 };
 
-// Crear venta
 const crearVenta = async (req, res) => {
   const connection = await db.getConnection();
   try {
@@ -74,7 +73,6 @@ const crearVenta = async (req, res) => {
       return res.status(400).json({ error: 'La venta debe tener al menos un producto' });
     }
 
-    // Calcular total y validar stock
     let total = 0;
     for (const item of productos) {
       const [prod] = await connection.query(
@@ -85,12 +83,12 @@ const crearVenta = async (req, res) => {
 
       if (prod.length === 0) {
         await connection.rollback();
-        return res.status(404).json({ error: `Producto no encontrado` });
+        return res.status(404).json({ error: 'Producto no encontrado' });
       }
 
       if (prod[0].stock_actual < item.cantidad) {
         await connection.rollback();
-        return res.status(400).json({ error: `Stock insuficiente para el producto` });
+        return res.status(400).json({ error: 'Stock insuficiente para el producto' });
       }
 
       item.precio_unitario = prod[0].precio_venta;
@@ -98,7 +96,6 @@ const crearVenta = async (req, res) => {
       total += item.subtotal;
     }
 
-    // Insertar venta
     const [ventaResult] = await connection.query(
       `INSERT INTO ventas (id_negocio, id_usuario, id_cliente, total, metodo_pago) 
        VALUES (?, ?, ?, ?, ?)`,
@@ -107,7 +104,6 @@ const crearVenta = async (req, res) => {
 
     const id_venta = ventaResult.insertId;
 
-    // Insertar detalle y actualizar stock
     for (const item of productos) {
       await connection.query(
         `INSERT INTO detalle_ventas (id_venta, id_producto, cantidad, precio_unitario, subtotal) 
@@ -121,7 +117,6 @@ const crearVenta = async (req, res) => {
         [item.cantidad, item.id_producto]
       );
 
-      // Registrar movimiento de salida
       await connection.query(
         `INSERT INTO movimientos (id_producto, id_usuario, tipo, cantidad, 
           stock_antes, stock_despues, motivo)
@@ -132,7 +127,6 @@ const crearVenta = async (req, res) => {
       );
     }
 
-    // Crear ticket automaticamente
     await connection.query(
       `INSERT INTO tickets (id_venta) VALUES (?)`,
       [id_venta]
@@ -154,7 +148,6 @@ const crearVenta = async (req, res) => {
   }
 };
 
-// Obtener ticket de una venta
 const getTicket = async (req, res) => {
   try {
     const id_negocio = req.usuario.id_negocio;
@@ -165,7 +158,8 @@ const getTicket = async (req, res) => {
               u.nombre AS usuario,
               c.nombre AS cliente,
               n.nombre AS negocio,
-              n.telefono AS telefono_negocio
+              n.telefono AS telefono_negocio,
+              n.logo AS logo
        FROM ventas v
        JOIN usuarios u ON v.id_usuario = u.id_usuario
        LEFT JOIN clientes c ON v.id_cliente = c.id_cliente
@@ -187,14 +181,25 @@ const getTicket = async (req, res) => {
       [id]
     );
 
-    // Marcar como reimpresion si ya existe ticket
     await db.query(
-      `UPDATE tickets SET reimpresion = 1 
-       WHERE id_venta = ?`,
+      `UPDATE tickets SET reimpresion = 1 WHERE id_venta = ?`,
       [id]
     );
 
-    res.json({ venta: venta[0], detalle });
+    let logoBase64 = null;
+    if (venta[0].logo) {
+      try {
+        const logoPath = path.join(__dirname, '../../uploads', path.basename(venta[0].logo));
+        console.log('Ruta logo:', logoPath);
+        const logoBuffer = fs.readFileSync(logoPath);
+        const ext = path.extname(venta[0].logo).replace('.', '');
+        logoBase64 = `data:image/${ext};base64,${logoBuffer.toString('base64')}`;
+      } catch (err) {
+        console.error('Error al leer logo:', err.message);
+      }
+    }
+
+    res.json({ venta: { ...venta[0], logoBase64 }, detalle });
   } catch (error) {
     console.error('Error al obtener ticket:', error);
     res.status(500).json({ error: 'Error al obtener ticket' });
