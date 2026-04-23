@@ -12,6 +12,7 @@ const proveedorRoutes = require('./routes/proveedorRoutes');
 const movimientoRoutes = require('./routes/movimientoRoutes');
 const clienteRoutes = require('./routes/clienteRoutes');
 const ventaRoutes = require('./routes/ventaRoutes');
+const reporteRoutes = require('./routes/reporteRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -30,6 +31,7 @@ app.use('/api/proveedores', proveedorRoutes);
 app.use('/api/movimientos', movimientoRoutes);
 app.use('/api/clientes', clienteRoutes);
 app.use('/api/ventas', ventaRoutes);
+app.use('/api/reportes', reporteRoutes);
 
 // Ruta principal
 app.get('/', (req, res) => {
