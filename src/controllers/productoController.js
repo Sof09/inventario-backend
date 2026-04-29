@@ -1,5 +1,9 @@
 // src/controllers/productoController.js - BACKEND
 const db = require('../config/database');
+const multer = require('multer');
+const XLSX = require('xlsx');
+
+const upload = multer({ storage: multer.memoryStorage() });
 
 const getProductos = async (req, res) => {
   const { id_negocio } = req.usuario;
@@ -149,4 +153,80 @@ const getResumen = async (req, res) => {
   }
 };
 
-module.exports = { getProductos, crearProducto, editarProducto, eliminarProducto, getStockBajo, getResumen };
+const importarProductosExcel = async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No se recibio ningun archivo' });
+  }
+
+  const { id_negocio } = req.usuario;
+
+  try {
+    const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+    const hoja = workbook.Sheets[workbook.SheetNames[0]];
+    const filas = XLSX.utils.sheet_to_json(hoja);
+
+    if (!filas.length) {
+      return res.status(400).json({ error: 'El archivo Excel esta vacio' });
+    }
+
+    const resultados = { insertados: 0, actualizados: 0, errores: [] };
+
+    for (const fila of filas) {
+      const codigo_barras = String(fila['Codigo'] || '').trim();
+      const nombre = String(fila['nombre'] || '').trim();
+      const precio_compra = parseFloat(fila['Precio compra']) || 0;
+      const precio_venta = parseFloat(fila['Precio publico']) || 0;
+      const stock_actual = parseInt(fila['cantidad']) || 0;
+      const stock_minimo = parseInt(fila['stock_minimo']) || 5;
+
+      if (!nombre) {
+        resultados.errores.push({ fila, motivo: 'Nombre vacio' });
+        continue;
+      }
+
+      if (codigo_barras) {
+        const [existente] = await db.query(
+          'SELECT id_producto FROM productos WHERE codigo_barras = ? AND id_negocio = ?',
+          [codigo_barras, id_negocio]
+        );
+
+        if (existente.length > 0) {
+          await db.query(
+            `UPDATE productos
+             SET nombre = ?, precio_compra = ?, precio_venta = ?,
+                 stock_actual = ?, stock_minimo = ?
+             WHERE codigo_barras = ? AND id_negocio = ?`,
+            [nombre, precio_compra, precio_venta, stock_actual, stock_minimo, codigo_barras, id_negocio]
+          );
+          resultados.actualizados++;
+          continue;
+        }
+      }
+
+      await db.query(
+        `INSERT INTO productos
+           (id_negocio, codigo_barras, nombre, precio_compra, precio_venta, stock_actual, stock_minimo)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [id_negocio, codigo_barras || null, nombre, precio_compra, precio_venta, stock_actual, stock_minimo]
+      );
+      resultados.insertados++;
+    }
+
+    res.json({ mensaje: 'Importacion completada', ...resultados });
+
+  } catch (error) {
+    console.error('Error al importar Excel:', error);
+    res.status(500).json({ error: 'Error interno al procesar el archivo' });
+  }
+};
+
+module.exports = {
+  getProductos,
+  crearProducto,
+  editarProducto,
+  eliminarProducto,
+  getStockBajo,
+  getResumen,
+  importarProductosExcel,
+  upload
+};
