@@ -153,6 +153,16 @@ const getResumen = async (req, res) => {
   }
 };
 
+const getByClave = (obj, ...claves) => {
+  const objLower = Object.fromEntries(
+    Object.entries(obj).map(([k, v]) => [k.toLowerCase().trim(), v])
+  );
+  for (const clave of claves) {
+    if (objLower[clave.toLowerCase()] !== undefined) return objLower[clave.toLowerCase()];
+  }
+  return '';
+};
+
 const importarProductosExcel = async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No se recibio ningun archivo' });
@@ -172,15 +182,15 @@ const importarProductosExcel = async (req, res) => {
     const resultados = { insertados: 0, actualizados: 0, errores: [] };
 
     for (const fila of filas) {
-      const codigo_barras = String(fila['Codigo'] || '').trim();
-      const nombre = String(fila['nombre'] || '').trim();
-      const precio_compra = parseFloat(fila['Precio compra']) || 0;
-      const precio_venta = parseFloat(fila['Precio publico']) || 0;
-      const stock_actual = parseInt(fila['cantidad']) || 0;
-      const stock_minimo = parseInt(fila['stock_minimo']) || 5;
+      const codigo_barras = String(getByClave(fila, 'codigo', 'Codigo', 'CODIGO', 'codigo_barras') || '').trim();
+      const nombre = String(getByClave(fila, 'nombre', 'Nombre', 'NOMBRE') || '').trim();
+      const precio_compra = parseFloat(getByClave(fila, 'precio compra', 'Precio compra', 'PRECIO COMPRA', 'precio_compra', 'costo', 'precio')) || 0;
+      const precio_venta = parseFloat(getByClave(fila, 'precio publico', 'Precio publico', 'PRECIO PUBLICO', 'precio_venta', 'precio p', 'PRECIO P', 'precio venta')) || 0;
+      const stock_actual = parseInt(getByClave(fila, 'cantidad', 'Cantidad', 'CANTIDAD', 'stock_actual', 'stock actual')) || 0;
+      const stock_minimo = parseInt(getByClave(fila, 'stock_minimo', 'stock minimo', 'Stock minimo', 'STOCK MINIMO')) || 5;
 
       if (!nombre) {
-        resultados.errores.push({ fila, motivo: 'Nombre vacio' });
+        resultados.errores.push({ motivo: 'Nombre vacio' });
         continue;
       }
 
