@@ -1,6 +1,6 @@
+// src/controllers/proveedorController.js - BACKEND
 const db = require('../config/database');
 
-// Listar proveedores del negocio
 const getProveedores = async (req, res) => {
   const { id_negocio } = req.usuario;
 
@@ -16,15 +16,14 @@ const getProveedores = async (req, res) => {
   }
 };
 
-// Crear proveedor
 const crearProveedor = async (req, res) => {
   const { id_negocio } = req.usuario;
-  const { nombre, telefono, email, direccion } = req.body;
+  const { nombre, telefono, email, direccion, color } = req.body;
 
   try {
     const [resultado] = await db.query(
-      'INSERT INTO proveedores (id_negocio, nombre, telefono, email, direccion) VALUES (?, ?, ?, ?, ?)',
-      [id_negocio, nombre, telefono, email, direccion]
+      'INSERT INTO proveedores (id_negocio, nombre, telefono, email, direccion, color) VALUES (?, ?, ?, ?, ?, ?)',
+      [id_negocio, nombre, telefono, email, direccion, color || '#1e40af']
     );
     res.status(201).json({
       mensaje: 'Proveedor creado exitosamente',
@@ -36,17 +35,16 @@ const crearProveedor = async (req, res) => {
   }
 };
 
-// Editar proveedor
 const editarProveedor = async (req, res) => {
   const { id_negocio } = req.usuario;
   const { id } = req.params;
-  const { nombre, telefono, email, direccion } = req.body;
+  const { nombre, telefono, email, direccion, color } = req.body;
 
   try {
     await db.query(
-      `UPDATE proveedores SET nombre = ?, telefono = ?, email = ?, direccion = ?
+      `UPDATE proveedores SET nombre = ?, telefono = ?, email = ?, direccion = ?, color = ?
        WHERE id_proveedor = ? AND id_negocio = ?`,
-      [nombre, telefono, email, direccion, id, id_negocio]
+      [nombre, telefono, email, direccion, color || '#1e40af', id, id_negocio]
     );
     res.json({ mensaje: 'Proveedor actualizado exitosamente' });
   } catch (error) {
@@ -55,7 +53,6 @@ const editarProveedor = async (req, res) => {
   }
 };
 
-// Desactivar proveedor
 const eliminarProveedor = async (req, res) => {
   const { id_negocio } = req.usuario;
   const { id } = req.params;
