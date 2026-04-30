@@ -163,6 +163,22 @@ const getByClave = (obj, ...claves) => {
   return '';
 };
 
+const obtenerOCrearCategoria = async (nombreCategoria, id_negocio) => {
+  const nombre = nombreCategoria.trim();
+  const [existente] = await db.query(
+    'SELECT id_categoria FROM categorias WHERE LOWER(nombre) = LOWER(?) AND id_negocio = ?',
+    [nombre, id_negocio]
+  );
+  if (existente.length > 0) {
+    return existente[0].id_categoria;
+  }
+  const [resultado] = await db.query(
+    'INSERT INTO categorias (id_negocio, nombre) VALUES (?, ?)',
+    [id_negocio, nombre]
+  );
+  return resultado.insertId;
+};
+
 const importarProductosExcel = async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No se recibio ningun archivo' });
@@ -172,54 +188,60 @@ const importarProductosExcel = async (req, res) => {
 
   try {
     const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
-    const hoja = workbook.Sheets[workbook.SheetNames[0]];
-    const filas = XLSX.utils.sheet_to_json(hoja);
+    const resultados = { insertados: 0, actualizados: 0, errores: [], categorias_creadas: [] };
 
-    if (!filas.length) {
-      return res.status(400).json({ error: 'El archivo Excel esta vacio' });
-    }
+    for (const nombreHoja of workbook.SheetNames) {
+      const hoja = workbook.Sheets[nombreHoja];
+      const filas = XLSX.utils.sheet_to_json(hoja);
 
-    const resultados = { insertados: 0, actualizados: 0, errores: [] };
+      if (!filas.length) continue;
 
-    for (const fila of filas) {
-      const codigo_barras = String(getByClave(fila, 'codigo', 'Codigo', 'CODIGO', 'codigo_barras') || '').trim();
-      const nombre = String(getByClave(fila, 'nombre', 'Nombre', 'NOMBRE') || '').trim();
-      const precio_compra = parseFloat(getByClave(fila, 'precio compra', 'Precio compra', 'PRECIO COMPRA', 'precio_compra', 'costo', 'precio')) || 0;
-      const precio_venta = parseFloat(getByClave(fila, 'precio publico', 'Precio publico', 'PRECIO PUBLICO', 'precio_venta', 'precio p', 'PRECIO P', 'precio venta')) || 0;
-      const stock_actual = parseInt(getByClave(fila, 'cantidad', 'Cantidad', 'CANTIDAD', 'stock_actual', 'stock actual')) || 0;
-      const stock_minimo = parseInt(getByClave(fila, 'stock_minimo', 'stock minimo', 'Stock minimo', 'STOCK MINIMO')) || 5;
+      const id_categoria = await obtenerOCrearCategoria(nombreHoja, id_negocio);
 
-      if (!nombre) {
-        resultados.errores.push({ motivo: 'Nombre vacio' });
-        continue;
+      if (!resultados.categorias_creadas.includes(nombreHoja)) {
+        resultados.categorias_creadas.push(nombreHoja);
       }
 
-      if (codigo_barras) {
-        const [existente] = await db.query(
-          'SELECT id_producto FROM productos WHERE codigo_barras = ? AND id_negocio = ?',
-          [codigo_barras, id_negocio]
-        );
+      for (const fila of filas) {
+        const codigo_barras = String(getByClave(fila, 'codigo', 'Codigo', 'CODIGO', 'codigo_barras') || '').trim();
+        const nombre = String(getByClave(fila, 'nombre', 'Nombre', 'NOMBRE') || '').trim();
+        const precio_compra = parseFloat(getByClave(fila, 'precio compra', 'Precio compra', 'PRECIO COMPRA', 'precio_compra', 'costo', 'precio')) || 0;
+        const precio_venta = parseFloat(getByClave(fila, 'precio publico', 'Precio publico', 'PRECIO PUBLICO', 'precio_venta', 'precio p', 'PRECIO P', 'precio venta')) || 0;
+        const stock_actual = parseInt(getByClave(fila, 'cantidad', 'Cantidad', 'CANTIDAD', 'stock_actual', 'stock actual')) || 0;
+        const stock_minimo = parseInt(getByClave(fila, 'stock_minimo', 'stock minimo', 'Stock minimo', 'STOCK MINIMO')) || 5;
 
-        if (existente.length > 0) {
-          await db.query(
-            `UPDATE productos
-             SET nombre = ?, precio_compra = ?, precio_venta = ?,
-                 stock_actual = ?, stock_minimo = ?
-             WHERE codigo_barras = ? AND id_negocio = ?`,
-            [nombre, precio_compra, precio_venta, stock_actual, stock_minimo, codigo_barras, id_negocio]
-          );
-          resultados.actualizados++;
+        if (!nombre) {
+          resultados.errores.push({ motivo: 'Nombre vacio', hoja: nombreHoja });
           continue;
         }
-      }
 
-      await db.query(
-        `INSERT INTO productos
-           (id_negocio, codigo_barras, nombre, precio_compra, precio_venta, stock_actual, stock_minimo)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [id_negocio, codigo_barras || null, nombre, precio_compra, precio_venta, stock_actual, stock_minimo]
-      );
-      resultados.insertados++;
+        if (codigo_barras) {
+          const [existente] = await db.query(
+            'SELECT id_producto FROM productos WHERE codigo_barras = ? AND id_negocio = ?',
+            [codigo_barras, id_negocio]
+          );
+
+          if (existente.length > 0) {
+            await db.query(
+              `UPDATE productos
+               SET nombre = ?, precio_compra = ?, precio_venta = ?,
+                   stock_actual = ?, stock_minimo = ?, id_categoria = ?
+               WHERE codigo_barras = ? AND id_negocio = ?`,
+              [nombre, precio_compra, precio_venta, stock_actual, stock_minimo, id_categoria, codigo_barras, id_negocio]
+            );
+            resultados.actualizados++;
+            continue;
+          }
+        }
+
+        await db.query(
+          `INSERT INTO productos
+             (id_negocio, codigo_barras, nombre, precio_compra, precio_venta, stock_actual, stock_minimo, id_categoria)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [id_negocio, codigo_barras || null, nombre, precio_compra, precio_venta, stock_actual, stock_minimo, id_categoria]
+        );
+        resultados.insertados++;
+      }
     }
 
     res.json({ mensaje: 'Importacion completada', ...resultados });
