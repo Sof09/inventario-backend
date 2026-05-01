@@ -6,10 +6,9 @@ const getCotizaciones = async (req, res) => {
 
   try {
     const [cotizaciones] = await db.query(
-      `SELECT c.*, cl.nombre AS cliente, u.nombre AS usuario
+      `SELECT c.*, cl.nombre AS cliente
        FROM cotizaciones c
        LEFT JOIN clientes cl ON c.id_cliente = cl.id_cliente
-       LEFT JOIN usuarios u ON u.id_negocio = c.id_negocio
        WHERE c.id_negocio = ?
        ORDER BY c.fecha DESC`,
       [id_negocio]
@@ -67,7 +66,7 @@ const getDetalleCotizacion = async (req, res) => {
   try {
     const [[cotizacion]] = await db.query(
       `SELECT c.*, cl.nombre AS cliente, n.nombre AS negocio,
-              n.telefono AS telefono_negocio, n.logoBase64
+              n.telefono AS telefono_negocio, n.logo AS logoBase64
        FROM cotizaciones c
        LEFT JOIN clientes cl ON c.id_cliente = cl.id_cliente
        JOIN negocios n ON c.id_negocio = n.id_negocio
