@@ -13,6 +13,7 @@ const movimientoRoutes = require('./routes/movimientoRoutes');
 const clienteRoutes = require('./routes/clienteRoutes');
 const ventaRoutes = require('./routes/ventaRoutes');
 const reporteRoutes = require('./routes/reporteRoutes');
+const cotizacionRoutes = require('./routes/cotizacionRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -32,6 +33,7 @@ app.use('/api/movimientos', movimientoRoutes);
 app.use('/api/clientes', clienteRoutes);
 app.use('/api/ventas', ventaRoutes);
 app.use('/api/reportes', reporteRoutes);
+app.use('/api/cotizaciones', cotizacionRoutes);
 
 // Ruta principal
 app.get('/', (req, res) => {
